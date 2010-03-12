@@ -1,0 +1,312 @@
+<html>
+    <head>
+        <title>About BL Libs</title>
+        <style type="text/css" media="screen">
+            .section {
+                padding: 5px;
+            }
+            
+            .section > .title {
+                padding: 10px;
+                font-size: 1.6em;
+                font-weight: bold;
+            }
+            
+            .section > .content {
+                padding-bottom: 10px;
+                padding-left: 25px;
+            }
+            
+            .section > .subtitle {
+                font-size: 1.2em;
+                font-weight: bold;
+                padding-left: 20px;
+                padding-bottom: 5px;
+            }
+            
+            .section > .caption {
+                padding: 5px;
+                padding-top: 10px;
+                padding-left: 50px;
+                text-decoration: underline;
+                
+            }
+            
+            .section > .code {
+                margin-left: 60px;
+                margin-right: 60px;
+                padding-top: 5px;
+                padding-bottom: 5px;
+                margin-top: 5px;
+                margin-bottom: 25px;
+                background-color: #ccc;
+            }
+            
+            .section > .excitement {
+                font-size: 1.2em;
+                text-align: center;
+                font-weight: bold;
+                padding: 10px;
+            }
+        </style>
+        
+    </head>
+    
+    <body>
+        
+<div class='section'>
+    <div class='title'>Requirements:</div>
+    <div class='content'>
+        <ul>
+            <li>TouchJSON (for json load/dump)</li>
+            <li>FMDB (for sqlite interaction)</li>
+            <li>RegexKitLite (for any regex stuff, highly recommended)</li>
+        </ul>
+    </div>
+</div>
+
+<div class='section'>
+    <div class='title'>About:</div>
+    
+    <div class='content'>
+        Bellum Libs is a project that more or less brings together about a year of iPhone and Mac OS X programming. This code is provided as is, however, I do intend on keeping it as current as possible, and eliminating any bugs I find. At the moment the code has been tested on all hardware versions of the iPhone, and all features will work with any 3.0 iPhone OS. I'm not quite sure yet if I will start another set of code directly for the iPad but I think for the most part that will be differences in the XIB files rather than the code itself.
+
+        I think for most people these libraries should make programming the iPhone/iPad/Mac OS X a little easier, and in many ways implement features that you just don't have time to implement yourself. BLCache is perhaps the most valuable part of this library, second only to BLRequest.
+        
+    </div>
+
+    <div class='title'>Design Philosophy:</div>
+    <div class='content'>
+    To be honest, I didn't start with one, but as time has gone by i've written and rewritten a number of components in a way that makes quick development much easier. I love how the NS world works, less subclassing, etc etc. However, sometimes it does feel clunky, and I'm a huge fan of callback based programming, if that is the right way to describe it.
+    Anyway, most of the classes work the same way. Lets start with the three most simple examples:
+    
+    </div>
+    
+    <div class='subtitle'>BLRequest</div>
+    <div class='caption'>Lets get some web data:</div>
+    
+    <div class='code'><PRE>
+        -(void)fetchWebData {
+            BLRequest *r = [[BLRequest alloc] initWithURL:@"http://www.bellumlabs.com"];
+            [r addDelegate:self withSelector:@selector(handleData:)];
+            [r fetch];
+        }
+    
+        -(void)handleData:(BLRequest *)r {
+            NSString *result = [r stringPayload];
+        
+            NSLog(@"Result: %@", result);
+        }</PRE>
+    </div>
+
+    <div class='caption'>Or it's very convenient if you have JSON data (requires TouchJSON, highly recommended):</div>
+
+    <div class='code'><pre>
+        -(void)fetchWebData {
+            BLRequest *r = [[BLRequest alloc] initWithURL:@"http://www.bellumlabs.com/some_json_data.json"];
+            [r addDelegate:self withSelector:@selector(handleData:)];
+            [r fetch];
+        }
+    
+        -(void)handleData:(BLRequest *)r {
+            NSArray *a = [r jsonOfData];
+            
+            NSLog(@"array: %@", a);
+        }</pre>
+    </div>
+    
+    <div class='excitement'>See Simple!</div>
+    
+    <div class='subtitle'>BLCache</div>
+    
+    <div class='content'>
+    Now lets say you have some image data you want to cache, BLCache makes it simple to download or fetch the cached version totally transparently.
+    There are two objects for doing things, BLCache and BLCacheObject, BLCacheObject is a simpler version of BLCache, but they are currently separate for backwards compatibility, for now, use BLCacheObject for fetching data (it is the newer code).
+    </div>
+    
+    <div class='code'><pre>
+        // The 'type' should be the class of anything that has a "initWithData" method.
+    
+        -(void)loadTheImage {
+            BLCacheObject *co = [[BLCacheObject alloc] initWithURL:@"http://www.bellumlabs.com/image.jpg"
+                                                       andDelegate:self
+                                                      withSelector:@selector(doLoad:)
+                                                            asType:[UIImage class]];
+            [co fetch];
+        }
+    
+        -(void)doLoad:(UIImage *)image {
+            // image will be nil if there is a problem.
+            [someUIImageViewInNib setImage:image];
+        }</pre>
+    </div>
+    
+    <div class='content'>
+    The key for the cached image is the URL itself, an exact string match, so anytime anyone else requests "http://www.bellumlabs.com/image.jpg" they'll get the copy from the database. Anytime you want to clear the cache there are a number of methods available to do so,
+    </div>
+    
+    <div class='code'><pre>
+        // clear entire database, good for development.
+        [BLCache clearDatabase];                         
+        
+        // clears any cache older than seconds.
+        [BLCache invalidateCacheOlderThan:(int)seconds]; 
+        
+        // clears any cache older than seconds of type class.
+        [BLCache invalidateCacheOlderThan:(int)seconds ofType:(class)c];
+        
+        // clears a specific key, good for "reload on shake".
+        [BLCache invalidateCacheWithKey:(NSString*)s];</pre>
+    </div>
+    
+    <div class='subtitle'>BLCallback</div>
+    <div class='content'>
+    Lastly, BLCallback, this is just a class for making it really easy to do event/callback driven programming. Since so many of the things you do are related to the web it's nice to have something that can callback on completion or whatever. This class is at the core of most of the BL objects.
+    </div>
+    
+    <div class='code'><pre>
+        BLCallback *cb = [[BLCallback alloc] initWithTarget:obj andSelector:@selector(someSelector:)];
+        [cb call:Arguments];</pre>
+    </div>
+    
+    <div class='content'>
+    This is great for creating small objects that rely on web results, sometimes the whole delegate thing makes that difficult, like with Facebook Connect, lets write a class for retrieving FBConnect data:
+    </div>
+    
+    <div class='code'><pre>
+    -- BLFacebookDataRequest.h --
+
+        #import &lt;Foundation/Foundation.h&gt;
+        #import "BLCallback.h"
+        #import "FBConnect/FBConnect.h"
+
+        @interface BLFacebookDataRequest : NSObject &lt;FBRequestDelegate&gt; {
+            BLCallback *callback;
+            NSString *fql;
+        }
+
+        -(void)loadWithFQL:(NSString *)fql;
+        -(void)request:(FBRequest*)request didLoad:(id)result;
+        -(void)request:(FBRequest*)request didFailWithError:(NSError*)error;
+
+        @end
+    
+    -- End BLFacebookDataRequest.h --
+    
+    -- BLFacebookDataRequest.m --
+
+        #import "BLFacebookDataRequest.h"
+
+        @implementation BLFacebookDataRequest
+
+        - (id)initWithTarget:(id)target andSelector:(SEL)sel {
+            if (self = [super init]) {
+                // Custom initialization
+                callback = [[BLCallback alloc] initWithTarget:target andSelector:sel];
+                [callback retain];
+            }
+            return self;
+        }
+
+        -(void)loadWithFQL:(NSString *)nfql {
+            fql = nfql;
+            NSDictionary* params = [NSDictionary dictionaryWithObject:fql forKey:@"query"];
+            [[FBRequest requestWithDelegate:self] call:@"facebook.fql.query" params:params];
+        }
+
+        -(void)request:(FBRequest*)request didLoad:(id)result {
+            [callback call:result];
+            [callback release];
+        }
+
+        -(void)request:(FBRequest*)request didFailWithError:(NSError*)error {
+            NSLog(@"Error During FQL request for\n    %@\n    %@", fql, error);
+        }
+
+        @end
+        
+    -- End BLFacebookDataRequest.m --</pre>
+    </div>
+    
+    <div class='caption'>
+        Now you can use it like so...
+    </div>
+    
+    <div class='code'><pre>
+        -(void)loadFacebookData {
+            FBSession *session =  /* This is where you get the instance of your session, 
+                                     it's up to you, i store it in the AppDelegate. */
+                                     
+            NSString *fql_isfan = [[NSString alloc] initWithFormat:
+                                    @"select uid from page_fan where uid == %llu and page_id == %@", 
+                                    session.uid, @"12345"];
+                                    
+            BLFacebookDataRequest *isFan = [[BLFacebookDataRequest alloc] 
+                                                initWithTarget:self 
+                                                   andSelector:@selector(getIsFan:)];
+            [isFan loadWithFQL:fql_isfan];
+        }
+    
+        -(void)getIsFan:(NSArray *)result {
+            NSLog(@"IsFan: %@", result);
+        }</pre>
+    </div>
+    
+    <div class='content'>
+        This quickly and easily gets past the whole, "But i have multiple facebook data requests that I need to get back to this object with".
+        Once you start programming this way it's hard to go back. BLCallback makes a number of things MUCH easier.
+    
+        Some other features of BL Libs are there simply to make your life a little easier.
+    
+        Lets say you are shipping a database along with your app, and you want to copy that database into a "live" database upon the first launch.
+        Just add the sqlite database you want to ship to your project, we'll call it "shipped_data.sqlite3", and we'll copy it over.
+    </div>
+    
+    <div class='code'><pre>
+        [BLDatabase copyAllDataFrom:@"/NameOfYourApp.app/shipped_data.sqlite3" 
+                         toDatabase:@"/Documents/database.db"];</pre>
+    </div>
+    
+    <div class='content'>
+        Done! This also makes it easier to reset to default settings, cause you will always have your original untouched.
+        This also makes it easy to ship a precached image database. (you can cache any type of data, images are usually the most popular)
+    
+        BLCache also allows you to store simple NSString key/value pairs if you want to, however these will be cleared if you clear the cache so you shouldn't use it for anything too important, if you need to save anything long term I still recommend,
+    </div>
+    
+    <div class='code'><pre>
+        NSUserDefaults *myDefaults = [NSUserDefaults standardUserDefaults];
+        [myDefaults setObject:@"YES" forKey:@"has_copied_over_shipped_db"];
+        [myDefaults synchronize];</pre>
+    </div>
+    
+    <div class='content'>
+        But if you need to store simple things, like the name for a facebook id for example:
+    </div>
+    
+    <div class='code'><pre>
+        [BLCache setString:@"Graham Abbott" forKey:@"12345"];</pre>
+    </div>
+    
+    <div class='content'>
+    That way you can save some data for later, (keep in mind, keeping this data for too long is against Facebook's Terms of Use), in order to fetch the data simply call:
+    </div>
+    
+    <div class='code'><pre>
+        NSString *name = [BLCache getStringForKey:@"12345"];
+        NSLog(@"Name = %@", name); // Name = Graham Abbott</pre>
+    </div>
+    
+    <div class='content'>
+        For the most part, those are the best parts of BL Libs, most of the functionality you get out of those 3 classes will allow you to develop applications much quicker, and generally with less "Where is this Data coming from" questions. BLCache is also wonderful if you have a highly image driven application.
+    </div>
+    
+    <BR><BR><BR>
+        <div style='text-align: center;'>
+            
+                Any additional questions should be directed to Graham Abbott at graham.abbott (at) bellumlabs (dot) com
+                
+                <br><br><br><br>
+        </div>
+    </body>
+</html>
