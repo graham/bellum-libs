@@ -3,7 +3,7 @@
 //  Commodity
 //
 //  Created by Graham Abbott on 2/5/09.
-//  Copyright 2009 __MyCompanyName__. All rights reserved.
+//  Copyright 2009 Bellum Labs LLC. All rights reserved.
 //
 
 #import "BLProgress.h"
@@ -39,10 +39,22 @@
     text = t;
     [statusText setText:text];
 }
+
+- (void)didRotateFromInterfaceOrientation:(UIInterfaceOrientation)fromInterfaceOrientation {
+    float screenWidth = [self.view bounds].size.width;
+	
+	if (screenWidth == 320.0f) {
+		[self.view setFrame:CGRectMake(0, 0, 320.0f, 480.0f)];
+	} else {
+		[self.view setFrame:CGRectMake(0, 0, 480.0f, 320.0f)];
+	}
+}
+
 // Override to allow orientations other than the default portrait orientation.
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation {
     // Return YES for supported orientations
-    return (interfaceOrientation == UIInterfaceOrientationLandscapeRight);
+    //return (interfaceOrientation == UIInterfaceOrientationLandscapeRight);
+    return YES;
 }
 
 

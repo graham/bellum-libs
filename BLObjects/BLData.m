@@ -153,4 +153,15 @@ static char encodingTable[64] = {
     
     return result;
 }
+
+-(id)jsonOfData {
+    id jsonData = [[CJSONDeserializer deserializer] deserialize:self error:nil];
+    
+    if (jsonData == nil) {
+        return nil;
+    } else {
+        return jsonData;
+    }
+}
+
 @end

@@ -3,10 +3,11 @@
 //  Commodity
 //
 //  Created by Graham Abbott on 2/19/09.
-//  Copyright 2009 __MyCompanyName__. All rights reserved.
+//  Copyright 2009 Bellum Labs LLC. All rights reserved.
 //
 
 #import <Foundation/Foundation.h>
+#import "BLSettings.h"
 #import "BLCallback.h"
 
 @interface BLAction : NSObject {
@@ -17,8 +18,11 @@
 
 - (void)addDelegate:(id)dele withSelector:(SEL)sele;
 - (void)addOnetimeDelegate:(id)dele withSelector:(SEL)sele;
+- (void)addErrorDelegate:(id)dele withSelector:(SEL)sele;
 - (void)removeDelegate:(id)dele withSelector:(SEL)sele;
 - (void)removeAllSelectorsForDelegate:(id)dele;
 - (void)fire;
+- (void)fireWithObject:(id)sender;
+- (void)fireError;
 
 @end

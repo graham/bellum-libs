@@ -3,7 +3,7 @@
 //  Commodity
 //
 //  Created by Graham Abbott on 2/17/09.
-//  Copyright 2009 __MyCompanyName__. All rights reserved.
+//  Copyright 2009 Bellum Labs LLC. All rights reserved.
 //
 
 #import "BLCallback.h"
@@ -15,8 +15,10 @@
 @synthesize selector;
 
 -(int)call:(id)sender {
-    //NSLog(@"Target:%@", target);
     @try {
+#ifdef BLTESTING
+        NSLog(@"Target: %@ -> %i", target, [target retainCount]);
+#endif
         NSMethodSignature * sig = nil;
 
         if (target == NULL) {
@@ -40,6 +42,7 @@
         }
     }
     @catch (NSException * e) {
+        NSLog(@"CALLBACK ERROR: %@", e);
         return 0;
     }
     @finally {
@@ -47,6 +50,19 @@
     }    
     
     return 1;
+}
+
+-(void)dealloc {
+#ifdef BLTESTING
+    NSLog(@"Dealloc BLCALLBACK");
+#endif
+    [target release];
+    [super dealloc];
+}
+
+-(int)callAndRelease:(id)sender {
+    [self call:sender];
+    [sender release];
 }
 
 @end
