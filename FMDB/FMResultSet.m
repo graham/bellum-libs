@@ -1,5 +1,6 @@
 #import "FMResultSet.h"
 #import "FMDatabase.h"
+#import "unistd.h"
 
 @interface FMResultSet (Private)
 - (NSMutableDictionary *)columnNameToIndexMap;
@@ -59,12 +60,10 @@
 
 - (void) kvcMagic:(id)object {
     
-    
     int columnCount = sqlite3_column_count(statement.statement);
     
     int columnIdx = 0;
     for (columnIdx = 0; columnIdx < columnCount; columnIdx++) {
-        
         
         const char *c = (const char *)sqlite3_column_text(statement.statement, columnIdx);
         
@@ -128,6 +127,10 @@
     return (rc == SQLITE_ROW);
 }
 
+- (BOOL) hasAnotherRow {
+    return sqlite3_errcode([parentDB sqliteHandle]) == SQLITE_ROW;
+}
+
 - (int) columnIndexForName:(NSString*)columnName {
     
     if (!columnNamesSetup) {
@@ -150,36 +153,15 @@
 
 
 - (int) intForColumn:(NSString*)columnName {
-    
-    if (!columnNamesSetup) {
-        [self setupColumnNames];
-    }
-    
-    int columnIdx = [self columnIndexForName:columnName];
-    
-    if (columnIdx == -1) {
-        return 0;
-    }
-    
-    return sqlite3_column_int(statement.statement, columnIdx);
+    return [self intForColumnIndex:[self columnIndexForName:columnName]];
 }
+
 - (int) intForColumnIndex:(int)columnIdx {
     return sqlite3_column_int(statement.statement, columnIdx);
 }
 
 - (long) longForColumn:(NSString*)columnName {
-    
-    if (!columnNamesSetup) {
-        [self setupColumnNames];
-    }
-    
-    int columnIdx = [self columnIndexForName:columnName];
-    
-    if (columnIdx == -1) {
-        return 0;
-    }
-    
-    return (long)sqlite3_column_int64(statement.statement, columnIdx);
+    return [self longForColumnIndex:[self columnIndexForName:columnName]];
 }
 
 - (long) longForColumnIndex:(int)columnIdx {
@@ -187,18 +169,7 @@
 }
 
 - (long long int) longLongIntForColumn:(NSString*)columnName {
-    
-    if (!columnNamesSetup) {
-        [self setupColumnNames];
-    }
-    
-    int columnIdx = [self columnIndexForName:columnName];
-    
-    if (columnIdx == -1) {
-        return 0;
-    }
-    
-    return sqlite3_column_int64(statement.statement, columnIdx);
+    return [self longLongIntForColumnIndex:[self columnIndexForName:columnName]];
 }
 
 - (long long int) longLongIntForColumnIndex:(int)columnIdx {
@@ -206,7 +177,7 @@
 }
 
 - (BOOL) boolForColumn:(NSString*)columnName {
-    return ([self intForColumn:columnName] != 0);
+    return [self boolForColumnIndex:[self columnIndexForName:columnName]];
 }
 
 - (BOOL) boolForColumnIndex:(int)columnIdx {
@@ -214,28 +185,18 @@
 }
 
 - (double) doubleForColumn:(NSString*)columnName {
-    
-    if (!columnNamesSetup) {
-        [self setupColumnNames];
-    }
-    
-    int columnIdx = [self columnIndexForName:columnName];
-    
-    if (columnIdx == -1) {
-        return 0;
-    }
-    
-    return sqlite3_column_double(statement.statement, columnIdx);
+    return [self doubleForColumnIndex:[self columnIndexForName:columnName]];
 }
 
 - (double) doubleForColumnIndex:(int)columnIdx {
     return sqlite3_column_double(statement.statement, columnIdx);
 }
 
-
-#pragma mark string functions
-
 - (NSString*) stringForColumnIndex:(int)columnIdx {
+    
+    if (sqlite3_column_type(statement.statement, columnIdx) == SQLITE_NULL || (columnIdx < 0)) {
+		return nil;
+	}
     
     const char *c = (const char *)sqlite3_column_text(statement.statement, columnIdx);
     
@@ -248,60 +209,32 @@
 }
 
 - (NSString*) stringForColumn:(NSString*)columnName {
-    
-    if (!columnNamesSetup) {
-        [self setupColumnNames];
-    }
-    
-    int columnIdx = [self columnIndexForName:columnName];
-    
-    if (columnIdx == -1) {
-        return nil;
-    }
-    
-    return [self stringForColumnIndex:columnIdx];
+    return [self stringForColumnIndex:[self columnIndexForName:columnName]];
 }
 
-
-
-
 - (NSDate*) dateForColumn:(NSString*)columnName {
-    
-    if (!columnNamesSetup) {
-        [self setupColumnNames];
-    }
-    
-    int columnIdx = [self columnIndexForName:columnName];
-    
-    if (columnIdx == -1) {
-        return nil;
-    }
-    
-    return [NSDate dateWithTimeIntervalSince1970:[self doubleForColumn:columnName]];
+    return [self dateForColumnIndex:[self columnIndexForName:columnName]];
 }
 
 - (NSDate*) dateForColumnIndex:(int)columnIdx {
+    
+    if (sqlite3_column_type(statement.statement, columnIdx) == SQLITE_NULL || (columnIdx < 0)) {
+		return nil;
+	}
+    
     return [NSDate dateWithTimeIntervalSince1970:[self doubleForColumnIndex:columnIdx]];
 }
 
 
 - (NSData*) dataForColumn:(NSString*)columnName {
-    
-    if (!columnNamesSetup) {
-        [self setupColumnNames];
-    }
-    
-    int columnIdx = [self columnIndexForName:columnName];
-    
-    if (columnIdx == -1) {
-        return nil;
-    }
-    
-    
-    return [self dataForColumnIndex:columnIdx];
+    return [self dataForColumnIndex:[self columnIndexForName:columnName]];
 }
 
 - (NSData*) dataForColumnIndex:(int)columnIdx {
+    
+    if (sqlite3_column_type(statement.statement, columnIdx) == SQLITE_NULL || (columnIdx < 0)) {
+		return nil;
+	}
     
     int dataSize = sqlite3_column_bytes(statement.statement, columnIdx);
     
@@ -314,22 +247,14 @@
 
 
 - (NSData*) dataNoCopyForColumn:(NSString*)columnName {
-    
-    if (!columnNamesSetup) {
-        [self setupColumnNames];
-    }
-    
-    int columnIdx = [self columnIndexForName:columnName];
-    
-    if (columnIdx == -1) {
-        return nil;
-    }
-    
-    
-    return [self dataNoCopyForColumnIndex:columnIdx];
+    return [self dataNoCopyForColumnIndex:[self columnIndexForName:columnName]];
 }
 
 - (NSData*) dataNoCopyForColumnIndex:(int)columnIdx {
+    
+    if (sqlite3_column_type(statement.statement, columnIdx) == SQLITE_NULL || (columnIdx < 0)) {
+		return nil;
+	}
     
     int dataSize = sqlite3_column_bytes(statement.statement, columnIdx);
     
@@ -339,8 +264,32 @@
 }
 
 
+- (BOOL) columnIndexIsNull:(int)columnIdx {
+    return sqlite3_column_type(statement.statement, columnIdx) == SQLITE_NULL;
+}
+
+- (BOOL) columnIsNull:(NSString*)columnName {
+    return [self columnIndexIsNull:[self columnIndexForName:columnName]];
+}
+
+- (const unsigned char *) UTF8StringForColumnIndex:(int)columnIdx {
+    
+    if (sqlite3_column_type(statement.statement, columnIdx) == SQLITE_NULL || (columnIdx < 0)) {
+		return nil;
+	}
+    
+    return sqlite3_column_text(statement.statement, columnIdx);
+}
+
+- (const unsigned char *) UTF8StringForColumnName:(NSString*)columnName {
+	return [self UTF8StringForColumnIndex:[self columnIndexForName:columnName]];
+}
 
 
+// returns autoreleased NSString containing the name of the column in the result set
+- (NSString*) columnNameForIndex:(int)columnIdx {
+	return [NSString stringWithUTF8String: sqlite3_column_name(statement.statement, columnIdx)];
+}
 
 - (void)setParentDB:(FMDatabase *)newDb {
     parentDB = newDb;
