@@ -1,0 +1,184 @@
+Requirements:
+    TouchJSON (for json load/dump)
+    FMDB (for sqlite interaction)
+    RegexKitLite (for any regex stuff, highly recommended)
+
+About:
+
+    Bellum Libs is a project that more or less brings together about a year of iPhone and Mac OS X programming. This code is provided as is, however, I do intend on keeping it as current as possible, and eliminating any bugs I find. At the moment the code has been tested on all hardware versions of the iPhone, and all features will work with any 3.0 iPhone OS. I'm not quite sure yet if I will start another set of code directly for the iPad but I think for the most part that will be differences in the XIB files rather than the code itself.
+
+    I think for most people these libraries should make programming the iPhone/iPad/Mac OS X a little easier, and in many ways implement features that you just don't have time to implement yourself. BLCache is perhaps the most valuable part of this library, second only to BLRequest.
+
+Design Philosophy:
+    To be honest, I didn't start with one, but as time has gone by i've written and rewritten a number of components in a way that makes quick development much easier. I love how the NS world works, less subclassing, etc etc. However, sometimes it does feel clunky, and I'm a huge fan of callback based programming, if that is the right way to describe it.
+    Anyway, most of the classes work the same way. Lets start with the three most simple examples:
+    
+    
+    Lets get some web data:
+    
+        -(void)fetchWebData {
+            BLRequest *r = [[BLRequest alloc] initWithURL:@"http://www.bellumlabs.com"];
+            [r addDelegate:self withSelector:@selector(handleData:)];
+            [r fetch];
+        }
+    
+        -(void)handleData:(BLRequest *)r {
+            NSString *result = [r stringPayload];
+        
+            NSLog(@"Result: %@", result);
+        }
+    
+    Or it's very convenient if you have JSON data (requires TouchJSON, highly recommended):
+
+        -(void)fetchWebData {
+            BLRequest *r = [[BLRequest alloc] initWithURL:@"http://www.bellumlabs.com/some_json_data.json"];
+            [r addDelegate:self withSelector:@selector(handleData:)];
+            [r fetch];
+        }
+    
+        -(void)handleData:(BLRequest *)r {
+            NSArray *a = [r jsonOfData];
+            
+            NSLog(@"array: %@", a);
+        }
+    
+    See Simple!
+    
+    Now lets say you have some image data you want to cache, BLCache makes it simple to download or fetch the cached version totally transparently.
+    There are two objects for doing things, BLCache and BLCacheObject, BLCacheObject is a simpler version of BLCache, but they are currently separate for backwards compatibility, for now, use BLCacheObject for fetching data (it is the newer code).
+    
+        // The 'type' should be the class of anything that has a "initWithData" method.
+    
+        -(void)loadTheImage {
+            BLCacheObject *co = [[BLCacheObject alloc] initWithURL:@"http://www.bellumlabs.com/image.jpg"
+                                                       andDelegate:self
+                                                      withSelector:@selector(doLoad:)
+                                                            asType:[UIImage class]];
+            [co fetch];
+        }
+    
+        -(void)doLoad:(UIImage *)image {
+            // image will be nil if there is a problem.
+            [someUIImageViewInNib setImage:image];
+        }
+    
+    The key for the cached image is the URL itself, an exact string match, so anytime anyone else requests "http://www.bellumlabs.com/image.jpg" they'll get the copy from the database. Anytime you want to clear the cache there are a number of methods available to do so,
+    
+        // clear entire database, good for development.
+        [BLCache clearDatabase];                         
+        
+        // clears any cache older than seconds.
+        [BLCache invalidateCacheOlderThan:(int)seconds]; 
+        
+        // clears any cache older than seconds of type class.
+        [BLCache invalidateCacheOlderThan:(int)seconds ofType:(class)c];
+        
+        // clears a specific key, good for "reload on shake".
+        [BLCache invalidateCacheWithKey:(NSString*)s];
+        
+    Lastly, BLCallback, this is just a class for making it really easy to do event/callback driven programming. Since so many of the things you do are related to the web it's nice to have something that can callback on completion or whatever. This class is at the core of most of the BL objects.
+    
+        BLCallback *cb = [[BLCallback alloc] initWithTarget:obj andSelector:@selector(someSelector:)];
+        [cb call:Arguments];
+        
+    This is great for creating small objects that rely on web results, sometimes the whole delegate thing makes that difficult, like with Facebook Connect, lets write a class for retrieving FBConnect data:
+    
+    
+    -- BLFacebookDataRequest.h --
+
+        #import <Foundation/Foundation.h>
+        #import "BLCallback.h"
+        #import "FBConnect/FBConnect.h"
+
+        @interface BLFacebookDataRequest : NSObject <FBRequestDelegate> {
+            BLCallback *callback;
+            NSString *fql;
+        }
+
+        -(void)loadWithFQL:(NSString *)fql;
+        -(void)request:(FBRequest*)request didLoad:(id)result;
+        -(void)request:(FBRequest*)request didFailWithError:(NSError*)error;
+
+        @end
+    
+    -- End BLFacebookDataRequest.h --
+    
+    -- BLFacebookDataRequest.m --
+
+        #import "BLFacebookDataRequest.h"
+
+        @implementation BLFacebookDataRequest
+
+        - (id)initWithTarget:(id)target andSelector:(SEL)sel {
+            if (self = [super init]) {
+                // Custom initialization
+                callback = [[BLCallback alloc] initWithTarget:target andSelector:sel];
+                [callback retain];
+            }
+            return self;
+        }
+
+        -(void)loadWithFQL:(NSString *)nfql {
+            fql = nfql;
+            NSDictionary* params = [NSDictionary dictionaryWithObject:fql forKey:@"query"];
+            [[FBRequest requestWithDelegate:self] call:@"facebook.fql.query" params:params];
+        }
+
+        -(void)request:(FBRequest*)request didLoad:(id)result {
+            [callback call:result];
+            [callback release];
+        }
+
+        -(void)request:(FBRequest*)request didFailWithError:(NSError*)error {
+            NSLog(@"Error During FQL request for\n    %@\n    %@", fql, error);
+        }
+
+        @end
+        
+    -- End BLFacebookDataRequest.m --
+    
+    Now you can use it like so...
+    
+        -(void)loadFacebookData {
+            FBSession *session = /* This is where you get the instance of your session, up to you, i store it in the AppDelegate. */
+            NSString *fql_isfan = [[NSString alloc] initWithFormat:@"select uid from page_fan where uid == %llu and page_id == %@", 
+                                                                   session.uid, @"12345"];
+            BLFacebookDataRequest *isFan = [[BLFacebookDataRequest alloc] initWithTarget:self andSelector:@selector(getIsFan:)];
+            [isFan loadWithFQL:fql_isfan];
+        }
+    
+        -(void)getIsFan:(NSArray *)result {
+            NSLog(@"IsFan: %@", result);
+        }
+    
+    This quickly and easily gets past the whole, "But i have multiple facebook data requests that I need to get back to this object with".
+    Once you start programming this way it's hard to go back. BLCallback makes a number of things MUCH easier.
+    
+    Some other features of BL Libs are there simply to make your life a little easier.
+    
+    Lets say you are shipping a database along with your app, and you want to copy that database into a "live" database upon the first launch.
+    Just add the sqlite database you want to ship to your project, we'll call it "shipped_data.sqlite3", and we'll copy it over.
+    
+        [BLDatabase copyAllDataFrom:@"/NameOfYourApp.app/shipped_data.sqlite3" toDatabase:@"/Documents/database.db"];
+
+    Done! This also makes it easier to reset to default settings, cause you will always have your original untouched.
+    This also makes it easy to ship a precached image database. (you can cache any type of data, images are usually the most popular)
+    
+    BLCache also allows you to store simple NSString key/value pairs if you want to, however these will be cleared if you clear the cache so you shouldn't use it for anything too important, if you need to save anything long term I still recommend,
+
+        NSUserDefaults *myDefaults = [NSUserDefaults standardUserDefaults];
+        [myDefaults setObject:@"YES" forKey:@"has_copied_over_shipped_db"];
+        [myDefaults synchronize];
+
+    But if you need to store simple things, like the name for a facebook id for example:
+    
+        [BLCache setString:@"Graham Abbott" forKey:@"12345"];
+        
+    That way you can save some data for later, (keep in mind, keeping this data for too long is against Facebooks Terms of Use), in order to fetch the data simply call:
+    
+        NSString *name = [BLCache getStringForKey:@"12345"];
+        NSLog(@"Name = %@", name); // Name = Graham Abbott
+        
+    For the most part, that is the best parts of BL Libs, most of the functionality you get out of those 3 classes will allow you to develop applications much quicker, and generally with less "Where is this Data coming from" questions. BLCache is also wonderful if you have a highly image driven application.
+    
+        Any additional questions should be directed to Graham Abbott at graham.abbott (at) bellumlabs (dot) com
